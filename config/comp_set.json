@@ -1,14 +1,16 @@
 {
-  "version": 1,
+  "version": 2,
   "client": "Hotel Navis",
   "destination": "Opatija",
   "currency": "EUR",
+  "rate_policy": "bookable",
+  "rate_policy_note": "Capture the rate a non-logged-in guest sees when they search the hotel — including any publicly displayed promotion (Getaway Deal, Limited Time Offer, Mobile rate, Genius-style public discount). This is the rate that actually converts bookings, so it's our true competitive benchmark. Do NOT strip promotions to recover a 'rack rate' — we want what a guest pays, not what a hotel quotes internally.",
   "hotels": [
     {
       "id": "navis",
       "name": "Hotel Navis",
       "is_subject": true,
-      "booking_url": "https://www.booking.com/hotel/hr/navis-opatija.en-gb.html",
+      "booking_url": "https://www.booking.com/hotel/hr/design-navis.en-gb.html",
       "tier": "5* boutique",
       "notes": "Subject hotel — our pricing is benchmarked against the rest"
     },
@@ -16,7 +18,7 @@
       "id": "hilton-costabella",
       "name": "Hilton Rijeka Costabella Beach Resort & Spa",
       "is_subject": false,
-      "booking_url": "https://www.booking.com/hotel/hr/costabella-rijeka.en-gb.html",
+      "booking_url": "https://www.booking.com/hotel/hr/hilton-rijeka-costabella-beach-resort-and-spa.en-gb.html",
       "tier": "5*",
       "notes": "Technically Rijeka but pulls same luxury demand pool"
     },
@@ -37,46 +39,27 @@
     },
     {
       "id": "ambasador",
-      "name": "Remisens Premium Hotel Ambasador",
+      "name": "Hotel Ambasador (by Liburnia Hotels)",
       "is_subject": false,
-      "booking_url": "https://www.booking.com/hotel/hr/remisens-premium-ambasador.en-gb.html",
-      "tier": "5*"
-    },
-    {
-      "id": "ikador",
-      "name": "Ikador Luxury Boutique Hotel & Spa",
-      "is_subject": false,
-      "booking_url": "https://www.booking.com/hotel/hr/ikador-luxury-boutique-and-spa.en-gb.html",
-      "tier": "5* boutique"
-    },
-    {
-      "id": "miramar",
-      "name": "Hotel Miramar",
-      "is_subject": false,
-      "booking_url": "https://www.booking.com/hotel/hr/miramar-opatija.en-gb.html",
-      "tier": "4* superior"
-    },
-    {
-      "id": "keight",
-      "name": "Keight Hotel Opatija, Curio Collection by Hilton",
-      "is_subject": false,
-      "booking_url": "https://www.booking.com/hotel/hr/keight-opatija.en-gb.html",
-      "tier": "5*"
+      "booking_url": "https://www.booking.com/hotel/hr/ambasador.en-gb.html",
+      "tier": "5*",
+      "notes": "Rebranded from Remisens Premium Hotel Ambasador"
     }
   ],
   "scan": {
     "horizon_months": ["2026-05", "2026-06", "2026-07", "2026-08"],
     "midweek_logic": {
-      "description": "For each ISO week in horizon, find the LOWEST nightly rate among Sun/Mon/Tue/Wed/Thu check-ins",
-      "checkin_days": ["sunday", "monday", "tuesday", "wednesday", "thursday"],
-      "scan_strategy": "lowest_in_week"
+      "description": "Wednesday only, one per ISO week, 16 weeks forward",
+      "scan_strategy": "wednesday_only",
+      "weeks_ahead": 16
     },
     "weekend_logic": {
-      "description": "For the next 4 weekends, capture explicit Friday and Saturday check-in rates",
+      "description": "Friday and Saturday explicit dates for next 4 weekends",
       "checkin_days": ["friday", "saturday"],
       "weekends_ahead": 4,
       "scan_strategy": "explicit_dates"
     },
+    "entries_per_hotel": 24,
     "occupancy": {
       "adults": 2,
       "children": 0,
