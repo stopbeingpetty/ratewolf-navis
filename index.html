@@ -216,7 +216,9 @@
   .heatmap-wrap::-webkit-scrollbar-thumb { background: var(--border-2); }
 
   .heatmap {
-    border-collapse: collapse; min-width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    min-width: 100%;
     font-family: 'JetBrains Mono', monospace; font-size: 11px;
   }
   .heatmap th {
@@ -231,6 +233,7 @@
     position: sticky; left: 0; z-index: 3;
     background: var(--surface-2);
     min-width: 200px; max-width: 200px;
+    box-shadow: 1px 0 0 var(--border), 4px 0 12px rgba(0,0,0,0.25);
   }
   .heatmap td.hotel-cell {
     background: var(--surface);
@@ -238,8 +241,10 @@
     padding: 10px 16px;
     font-family: 'Manrope', sans-serif;
     font-size: 12px; color: var(--ink-soft);
-    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    box-shadow: 1px 0 0 var(--border), 4px 0 12px rgba(0,0,0,0.25);
     white-space: nowrap;
+    min-width: 200px; max-width: 200px;
   }
   .heatmap td.hotel-cell.subject {
     color: var(--gold);
@@ -532,11 +537,25 @@ function ingestSnapshot() {
     setStatus('A snapshot with this captured_at already exists.', 'err'); return;
   }
 
+  // Coverage check — warn (don't block) if any hotel is sparse
+  const ratesByHotel = {};
+  parsed.rates.forEach(r => { ratesByHotel[r.hotel_id] = (ratesByHotel[r.hotel_id] || 0) + 1; });
+  const missing = CONFIG.hotels.map(h => h.id).filter(id => !ratesByHotel[id]);
+  const sparse = CONFIG.hotels.filter(h => ratesByHotel[h.id] && ratesByHotel[h.id] < 10).map(h => `${h.id} (${ratesByHotel[h.id]})`);
+  let coverageWarning = '';
+  if (missing.length) coverageWarning += `Missing entirely: ${missing.join(', ')}. `;
+  if (sparse.length) coverageWarning += `Sparse (<10 rates): ${sparse.join(', ')}.`;
+
   SNAPSHOTS.push(parsed);
   SNAPSHOTS.sort((a,b) => new Date(a.captured_at) - new Date(b.captured_at));
   saveLocalSnapshots();
-  setStatus(`Ingested. ${parsed.rates.length} rates added.`, 'ok');
-  setTimeout(() => { closeModal(); render(); }, 700);
+  if (coverageWarning) {
+    setStatus(`Ingested ${parsed.rates.length} rates · WARNING: ${coverageWarning}`, 'err');
+    setTimeout(() => { closeModal(); render(); }, 3000);
+  } else {
+    setStatus(`Ingested. ${parsed.rates.length} rates added across all hotels.`, 'ok');
+    setTimeout(() => { closeModal(); render(); }, 700);
+  }
 }
 
 function exportData() {
@@ -627,9 +646,10 @@ function render() {
           <div class="section-title">Navis vs. market median over time</div>
         </div>
       </div>
-      <div class="chart-card">
-        <div class="chart-canvas-wrap"><canvas id="trendChart"></canvas></div>
-      </div>
+      ${SNAPSHOTS.length < 2
+        ? `<div class="chart-card" style="text-align:center;padding:80px 24px"><div style="font-family:'Fraunces',serif;font-size:36px;color:var(--gold);margin-bottom:12px;font-variation-settings:'opsz' 144,'SOFT' 100">⏶</div><div style="font-family:'Fraunces',serif;font-size:18px;margin-bottom:8px">Trend will appear after the second snapshot</div><div class="empty-state-sub" style="margin:0 auto;max-width:420px">A line chart needs at least two data points. Run the workflow tomorrow and the movement view will plot Navis against market median over time.</div></div>`
+        : `<div class="chart-card"><div class="chart-canvas-wrap"><canvas id="trendChart"></canvas></div></div>`
+      }
     </div>
 
     <!-- Anomaly feed -->
@@ -657,7 +677,7 @@ function render() {
     c.onclick = () => { CURRENT_FILTER.stay = c.dataset.stay; render(); };
   });
 
-  drawTrend(subjectId);
+  if (SNAPSHOTS.length >= 2) drawTrend(subjectId);
 }
 
 /* ---------- KPIs ---------- */
