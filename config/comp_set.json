@@ -1,0 +1,92 @@
+{
+  "version": 1,
+  "client": "Hotel Navis",
+  "destination": "Opatija",
+  "currency": "EUR",
+  "hotels": [
+    {
+      "id": "navis",
+      "name": "Hotel Navis",
+      "is_subject": true,
+      "booking_url": "https://www.booking.com/hotel/hr/navis-opatija.en-gb.html",
+      "tier": "5* boutique",
+      "notes": "Subject hotel — our pricing is benchmarked against the rest"
+    },
+    {
+      "id": "hilton-costabella",
+      "name": "Hilton Rijeka Costabella Beach Resort & Spa",
+      "is_subject": false,
+      "booking_url": "https://www.booking.com/hotel/hr/costabella-rijeka.en-gb.html",
+      "tier": "5*",
+      "notes": "Technically Rijeka but pulls same luxury demand pool"
+    },
+    {
+      "id": "bevanda",
+      "name": "Hotel Bevanda",
+      "is_subject": false,
+      "booking_url": "https://www.booking.com/hotel/hr/bevanda.en-gb.html",
+      "tier": "5* boutique",
+      "notes": "Closest direct competitor by profile"
+    },
+    {
+      "id": "milenij",
+      "name": "Hotel Milenij",
+      "is_subject": false,
+      "booking_url": "https://www.booking.com/hotel/hr/milenij-opatija.en-gb.html",
+      "tier": "5*"
+    },
+    {
+      "id": "ambasador",
+      "name": "Remisens Premium Hotel Ambasador",
+      "is_subject": false,
+      "booking_url": "https://www.booking.com/hotel/hr/remisens-premium-ambasador.en-gb.html",
+      "tier": "5*"
+    },
+    {
+      "id": "ikador",
+      "name": "Ikador Luxury Boutique Hotel & Spa",
+      "is_subject": false,
+      "booking_url": "https://www.booking.com/hotel/hr/ikador-luxury-boutique-and-spa.en-gb.html",
+      "tier": "5* boutique"
+    },
+    {
+      "id": "miramar",
+      "name": "Hotel Miramar",
+      "is_subject": false,
+      "booking_url": "https://www.booking.com/hotel/hr/miramar-opatija.en-gb.html",
+      "tier": "4* superior"
+    },
+    {
+      "id": "keight",
+      "name": "Keight Hotel Opatija, Curio Collection by Hilton",
+      "is_subject": false,
+      "booking_url": "https://www.booking.com/hotel/hr/keight-opatija.en-gb.html",
+      "tier": "5*"
+    }
+  ],
+  "scan": {
+    "horizon_months": ["2026-05", "2026-06", "2026-07", "2026-08"],
+    "midweek_logic": {
+      "description": "For each ISO week in horizon, find the LOWEST nightly rate among Sun/Mon/Tue/Wed/Thu check-ins",
+      "checkin_days": ["sunday", "monday", "tuesday", "wednesday", "thursday"],
+      "scan_strategy": "lowest_in_week"
+    },
+    "weekend_logic": {
+      "description": "For the next 4 weekends, capture explicit Friday and Saturday check-in rates",
+      "checkin_days": ["friday", "saturday"],
+      "weekends_ahead": 4,
+      "scan_strategy": "explicit_dates"
+    },
+    "occupancy": {
+      "adults": 2,
+      "children": 0,
+      "rooms": 1,
+      "nights": 1
+    }
+  },
+  "alerts": {
+    "competitor_drop_threshold_pct": 10,
+    "we_overpriced_threshold_pct": 8,
+    "sold_out_flag": true
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "schema_doc": {
+    "captured_at": "ISO 8601 timestamp when this snapshot was taken",
+    "captured_by": "agent identifier (e.g. 'claude-in-chrome', 'manual')",
+    "rates": [
+      {
+        "hotel_id": "matches an id in config/comp_set.json",
+        "check_in": "YYYY-MM-DD",
+        "nights": 1,
+        "rate_eur": "lowest available nightly rate in EUR (number, or null if sold out)",
+        "room_type": "name of the cheapest available room",
+        "refundable": "true if free cancellation, false otherwise, null if unknown",
+        "sold_out": "true if no availability for these dates",
+        "stay_type": "midweek | weekend"
+      }
+    ]
+  },
+  "snapshots": []
+}

@@ -1,0 +1,884 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>RateWolf — Hotel Navis · Opatija</title>
+<meta name="description" content="Competitive rate intelligence for Hotel Navis." />
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@9..144,400;9..144,500;9..144,600;9..144,700&family=Manrope:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+<style>
+  :root {
+    --bg:        #14100C;
+    --bg-grain:  #181410;
+    --surface:   #1C1714;
+    --surface-2: #221C18;
+    --border:    #2D251E;
+    --border-2:  #3A2F26;
+
+    --ink:       #F4EDE0;
+    --ink-soft:  #D8CDB9;
+    --ink-mute:  #9A8E7B;
+    --ink-faint: #5C5346;
+
+    --gold:      #D4A85A;
+    --gold-soft: #B5904A;
+    --gold-glow: rgba(212, 168, 90, 0.18);
+
+    --positive:  #6B8B5F;
+    --negative:  #A84545;
+    --warn:      #C68638;
+
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.35);
+    --shadow-md: 0 8px 24px rgba(0,0,0,0.45);
+    --shadow-lg: 0 24px 60px rgba(0,0,0,0.55);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Manrope', system-ui, -apple-system, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+
+    background-image:
+      radial-gradient(at 8% 0%, rgba(212, 168, 90, 0.05) 0%, transparent 40%),
+      radial-gradient(at 92% 100%, rgba(168, 69, 69, 0.04) 0%, transparent 50%),
+      url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.95 0 0 0 0 0.92 0 0 0 0 0.85 0 0 0 0.04 0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-attachment: fixed;
+  }
+
+  ::selection { background: var(--gold); color: var(--bg); }
+
+  /* ---------- Type ---------- */
+  .display {
+    font-family: 'Fraunces', 'Times New Roman', serif;
+    font-variation-settings: "opsz" 144, "SOFT" 50;
+    font-weight: 500;
+    letter-spacing: -0.02em;
+  }
+  .mono { font-family: 'JetBrains Mono', 'Menlo', monospace; }
+  .uppercase-eyebrow {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+  }
+
+  /* ---------- PIN gate ---------- */
+  .gate {
+    position: fixed; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--bg);
+    z-index: 1000;
+  }
+  .gate-card {
+    width: 360px; padding: 48px 40px;
+    border: 1px solid var(--border);
+    background: linear-gradient(180deg, var(--surface) 0%, var(--bg) 100%);
+    border-radius: 2px;
+    box-shadow: var(--shadow-lg);
+    text-align: center;
+  }
+  .gate-mark {
+    font-family: 'Fraunces', serif;
+    font-variation-settings: "opsz" 144, "SOFT" 80;
+    font-size: 38px; font-weight: 600;
+    letter-spacing: -0.04em;
+    color: var(--gold);
+    margin-bottom: 4px;
+  }
+  .gate-sub { color: var(--ink-mute); font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; margin-bottom: 36px; }
+  .pin-input {
+    width: 100%; padding: 16px; background: transparent;
+    border: none; border-bottom: 1px solid var(--border-2);
+    color: var(--ink); font-family: 'JetBrains Mono', monospace;
+    font-size: 28px; text-align: center; letter-spacing: 0.5em;
+    outline: none; transition: border-color .2s;
+  }
+  .pin-input:focus { border-color: var(--gold); }
+  .pin-input.error { border-color: var(--negative); animation: shake .35s; }
+  @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-4px)} 75%{transform:translateX(4px)} }
+  .gate-hint { font-size: 11px; color: var(--ink-faint); margin-top: 24px; letter-spacing: 0.12em; text-transform: uppercase; }
+
+  /* ---------- Layout shell ---------- */
+  .shell { max-width: 1320px; margin: 0 auto; padding: 32px 40px 80px; }
+
+  header.topbar {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    padding-bottom: 24px; margin-bottom: 32px;
+    border-bottom: 1px solid var(--border);
+  }
+  .brand { display: flex; flex-direction: column; gap: 4px; }
+  .brand-mark {
+    font-family: 'Fraunces', serif;
+    font-variation-settings: "opsz" 144, "SOFT" 100;
+    font-weight: 600;
+    font-size: 32px;
+    letter-spacing: -0.03em;
+    color: var(--gold);
+    line-height: 1;
+  }
+  .brand-mark .punct { color: var(--ink-faint); font-weight: 400; }
+  .brand-meta {
+    display: flex; gap: 12px; align-items: center;
+    font-size: 12px; color: var(--ink-mute);
+    letter-spacing: 0.12em; text-transform: uppercase;
+    margin-top: 6px;
+  }
+  .brand-meta .dot { width: 4px; height: 4px; background: var(--ink-faint); border-radius: 50%; }
+
+  .topbar-actions { display: flex; gap: 8px; align-items: center; }
+  .btn {
+    background: transparent; color: var(--ink);
+    border: 1px solid var(--border-2); padding: 10px 16px;
+    font-family: 'Manrope', sans-serif; font-size: 12px;
+    font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase;
+    cursor: pointer; transition: all .18s ease;
+    border-radius: 1px;
+  }
+  .btn:hover { border-color: var(--gold-soft); color: var(--gold); background: var(--surface); }
+  .btn-primary { background: var(--gold); color: var(--bg); border-color: var(--gold); }
+  .btn-primary:hover { background: var(--gold-soft); color: var(--bg); border-color: var(--gold-soft); }
+  .btn-ghost { border-color: transparent; }
+  .btn-ghost:hover { border-color: var(--border-2); }
+
+  /* ---------- KPI strip ---------- */
+  .kpi-strip {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 1px; background: var(--border);
+    border: 1px solid var(--border);
+    margin-bottom: 32px;
+  }
+  .kpi {
+    background: var(--surface); padding: 24px;
+    display: flex; flex-direction: column; gap: 10px;
+    min-height: 120px;
+  }
+  .kpi-label { font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-mute); }
+  .kpi-value {
+    font-family: 'Fraunces', serif;
+    font-variation-settings: "opsz" 144, "SOFT" 30;
+    font-size: 38px; font-weight: 500; letter-spacing: -0.03em;
+    line-height: 1; color: var(--ink);
+  }
+  .kpi-value.positive { color: var(--positive); }
+  .kpi-value.negative { color: var(--negative); }
+  .kpi-sub { font-size: 11px; color: var(--ink-mute); margin-top: auto; }
+
+  /* ---------- Section headers ---------- */
+  .section { margin-bottom: 48px; }
+  .section-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    margin-bottom: 20px; padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .section-title {
+    font-family: 'Fraunces', serif;
+    font-variation-settings: "opsz" 144, "SOFT" 40;
+    font-size: 22px; font-weight: 500; letter-spacing: -0.02em;
+  }
+  .section-eyebrow {
+    font-size: 10px; font-weight: 600; letter-spacing: 0.2em;
+    text-transform: uppercase; color: var(--ink-faint);
+  }
+
+  /* ---------- Filter chips ---------- */
+  .filters { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .chip {
+    background: transparent; color: var(--ink-mute);
+    border: 1px solid var(--border-2); padding: 6px 14px;
+    font-size: 11px; font-weight: 500; letter-spacing: 0.12em;
+    text-transform: uppercase; cursor: pointer; transition: all .15s;
+    border-radius: 2px;
+  }
+  .chip:hover { color: var(--ink); border-color: var(--ink-faint); }
+  .chip.active { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+
+  /* ---------- Heatmap ---------- */
+  .heatmap-wrap {
+    overflow-x: auto; border: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .heatmap-wrap::-webkit-scrollbar { height: 8px; }
+  .heatmap-wrap::-webkit-scrollbar-track { background: var(--bg); }
+  .heatmap-wrap::-webkit-scrollbar-thumb { background: var(--border-2); }
+
+  .heatmap {
+    border-collapse: collapse; min-width: 100%;
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  }
+  .heatmap th {
+    background: var(--surface-2); color: var(--ink-mute);
+    font-weight: 500; font-size: 10px; letter-spacing: 0.05em;
+    padding: 12px 8px; text-align: center; white-space: nowrap;
+    border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; z-index: 2;
+  }
+  .heatmap th.hotel-col {
+    text-align: left; padding-left: 16px;
+    position: sticky; left: 0; z-index: 3;
+    background: var(--surface-2);
+    min-width: 200px; max-width: 200px;
+  }
+  .heatmap td.hotel-cell {
+    background: var(--surface);
+    position: sticky; left: 0; z-index: 1;
+    padding: 10px 16px;
+    font-family: 'Manrope', sans-serif;
+    font-size: 12px; color: var(--ink-soft);
+    border-right: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  .heatmap td.hotel-cell.subject {
+    color: var(--gold);
+    font-weight: 600;
+  }
+  .heatmap tr.subject-row td.hotel-cell::before {
+    content: '◆ '; color: var(--gold); font-size: 10px;
+  }
+  .heatmap td {
+    padding: 8px 6px; text-align: center;
+    border-bottom: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+    color: var(--ink-soft); white-space: nowrap;
+    transition: background-color .12s;
+    min-width: 64px;
+  }
+  .heatmap tr.subject-row td { background: rgba(212, 168, 90, 0.06); }
+  .heatmap td.weekend-col { background: var(--bg-grain); }
+  .heatmap tr.subject-row td.weekend-col { background: rgba(212, 168, 90, 0.10); }
+  .heatmap td.delta-pos { color: var(--positive); }
+  .heatmap td.delta-neg { color: var(--negative); }
+  .heatmap td.sold-out { color: var(--ink-faint); font-style: italic; }
+  .heatmap td.empty { color: var(--ink-faint); }
+  .heatmap td:hover { background: var(--surface-2); cursor: default; }
+  .heatmap th.weekend-col { color: var(--gold-soft); background: var(--surface-2); }
+
+  /* ---------- Trend chart ---------- */
+  .chart-card { background: var(--surface); border: 1px solid var(--border); padding: 24px; }
+  .chart-canvas-wrap { position: relative; height: 280px; }
+
+  /* ---------- Anomaly feed ---------- */
+  .feed { display: flex; flex-direction: column; gap: 1px; background: var(--border); border: 1px solid var(--border); }
+  .feed-item { background: var(--surface); padding: 14px 18px; display: grid; grid-template-columns: 80px 1fr auto; gap: 16px; align-items: center; }
+  .feed-tag { font-size: 10px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; padding: 4px 8px; border-radius: 1px; text-align: center; }
+  .feed-tag.drop { background: rgba(107, 139, 95, 0.12); color: var(--positive); border: 1px solid rgba(107, 139, 95, 0.3); }
+  .feed-tag.surge { background: rgba(168, 69, 69, 0.12); color: var(--negative); border: 1px solid rgba(168, 69, 69, 0.3); }
+  .feed-tag.soldout { background: rgba(198, 134, 56, 0.12); color: var(--warn); border: 1px solid rgba(198, 134, 56, 0.3); }
+  .feed-tag.alert { background: rgba(212, 168, 90, 0.12); color: var(--gold); border: 1px solid rgba(212, 168, 90, 0.3); }
+  .feed-text { color: var(--ink-soft); font-size: 13px; }
+  .feed-text strong { color: var(--ink); font-weight: 600; }
+  .feed-when { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink-faint); }
+
+  /* ---------- Empty state ---------- */
+  .empty-state {
+    text-align: center; padding: 80px 24px;
+    border: 1px dashed var(--border-2); background: var(--surface);
+  }
+  .empty-state-mark {
+    font-family: 'Fraunces', serif; font-size: 48px; font-weight: 500;
+    color: var(--gold); letter-spacing: -0.03em; margin-bottom: 8px;
+    font-variation-settings: "opsz" 144, "SOFT" 100;
+  }
+  .empty-state-title {
+    font-family: 'Fraunces', serif; font-size: 22px; font-weight: 500;
+    margin-bottom: 12px; color: var(--ink);
+  }
+  .empty-state-sub { color: var(--ink-mute); max-width: 480px; margin: 0 auto 32px; line-height: 1.7; }
+
+  /* ---------- Modal ---------- */
+  .modal-bg { position: fixed; inset: 0; background: rgba(20, 16, 12, 0.85); z-index: 100; display: none; align-items: center; justify-content: center; padding: 24px; backdrop-filter: blur(4px); }
+  .modal-bg.open { display: flex; }
+  .modal {
+    width: 720px; max-width: 100%; max-height: 90vh; overflow: auto;
+    background: var(--surface); border: 1px solid var(--border-2);
+    box-shadow: var(--shadow-lg); padding: 32px; border-radius: 2px;
+  }
+  .modal-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+  .modal-title { font-family: 'Fraunces', serif; font-size: 24px; font-weight: 500; letter-spacing: -0.02em; }
+  .modal-sub { color: var(--ink-mute); font-size: 13px; margin-bottom: 24px; }
+  .modal textarea {
+    width: 100%; min-height: 280px; background: var(--bg);
+    border: 1px solid var(--border-2); color: var(--ink-soft);
+    padding: 16px; font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    line-height: 1.6; resize: vertical; outline: none; border-radius: 1px;
+  }
+  .modal textarea:focus { border-color: var(--gold-soft); }
+  .modal-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 20px; gap: 12px; }
+  .modal-status { font-size: 12px; color: var(--ink-mute); flex: 1; }
+  .modal-status.ok { color: var(--positive); }
+  .modal-status.err { color: var(--negative); }
+
+  /* ---------- Footer ---------- */
+  footer { padding-top: 32px; margin-top: 48px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; font-size: 11px; color: var(--ink-faint); letter-spacing: 0.12em; text-transform: uppercase; }
+  footer a { color: var(--ink-mute); text-decoration: none; }
+  footer a:hover { color: var(--gold); }
+
+  @media (max-width: 900px) {
+    .kpi-strip { grid-template-columns: repeat(2, 1fr); }
+    .shell { padding: 20px 16px 60px; }
+    .topbar { flex-direction: column; align-items: flex-start; gap: 16px; }
+    .topbar-actions { width: 100%; }
+    .brand-mark { font-size: 26px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ PIN GATE ============ -->
+<div class="gate" id="gate">
+  <div class="gate-card">
+    <div class="gate-mark">RateWolf</div>
+    <div class="gate-sub">Concierge Intelligence</div>
+    <input type="password" inputmode="numeric" maxlength="4" pattern="[0-9]*"
+           class="pin-input" id="pinInput" placeholder="••••" autocomplete="off"/>
+    <div class="gate-hint">Enter four-digit PIN</div>
+  </div>
+</div>
+
+<!-- ============ MAIN APP ============ -->
+<div class="shell" id="app" style="display:none">
+
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark">RateWolf<span class="punct">.</span></div>
+      <div class="brand-meta">
+        <span>Hotel Navis</span>
+        <span class="dot"></span>
+        <span>Opatija</span>
+        <span class="dot"></span>
+        <span id="lastUpdated">No data yet</span>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <button class="btn btn-ghost" id="exportBtn" title="Download merged dataset">⤓ Export</button>
+      <button class="btn btn-primary" id="updateBtn">+ New Snapshot</button>
+      <button class="btn btn-ghost" id="lockBtn" title="Lock dashboard">⌗ Lock</button>
+    </div>
+  </header>
+
+  <div id="content"></div>
+
+  <footer>
+    <div>design by David Atlija &nbsp;·&nbsp; Revenue Wolves</div>
+    <div>RateWolf v1.0</div>
+  </footer>
+</div>
+
+<!-- ============ UPDATE MODAL ============ -->
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-title">Ingest snapshot</div>
+      <button class="btn btn-ghost" id="modalClose">✕</button>
+    </div>
+    <div class="modal-sub">Paste the JSON output from the Claude in Chrome RateWolf workflow. The dashboard will validate, append to history, and refresh.</div>
+    <textarea id="jsonInput" placeholder='{ "captured_at": "...", "rates": [ ... ] }'></textarea>
+    <div class="modal-footer">
+      <div class="modal-status" id="modalStatus">&nbsp;</div>
+      <button class="btn" id="modalCancel">Cancel</button>
+      <button class="btn btn-primary" id="modalSave">Ingest</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =============================================================
+   RateWolf — Hotel Navis · Opatija
+   Single-file dashboard. Reads ./data/prices.json + localStorage.
+   ============================================================= */
+
+const PIN_HASH_KEY = 'rw_pin_v1';
+const LS_SNAPSHOTS_KEY = 'rw_snapshots_v1';
+const LS_AUTH_KEY = 'rw_auth_v1';
+
+// PIN — stored as hash so it's not plain in source.
+// Default: 1995 (David's birth year approx.) — change on first use via console:
+//   localStorage.setItem('rw_pin_v1', String(<your-4-digit-pin>.split('').reduce((h,c)=>((h<<5)-h)+c.charCodeAt(0)|0,0)))
+const DEFAULT_PIN = '1995';
+
+function pinHash(pin) {
+  return String(pin.split('').reduce((h,c)=>((h<<5)-h)+c.charCodeAt(0)|0, 0));
+}
+
+let CONFIG = null;
+let SNAPSHOTS = []; // [{ captured_at, captured_by, rates: [...] }]
+
+/* ---------- PIN gate ---------- */
+function initGate() {
+  const stored = localStorage.getItem(PIN_HASH_KEY) || pinHash(DEFAULT_PIN);
+  if (!localStorage.getItem(PIN_HASH_KEY)) localStorage.setItem(PIN_HASH_KEY, stored);
+
+  if (sessionStorage.getItem(LS_AUTH_KEY) === '1') {
+    document.getElementById('gate').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    boot();
+    return;
+  }
+
+  const input = document.getElementById('pinInput');
+  input.focus();
+  input.addEventListener('input', () => {
+    if (input.value.length === 4) {
+      if (pinHash(input.value) === localStorage.getItem(PIN_HASH_KEY)) {
+        sessionStorage.setItem(LS_AUTH_KEY, '1');
+        document.getElementById('gate').style.opacity = 0;
+        setTimeout(() => {
+          document.getElementById('gate').style.display = 'none';
+          document.getElementById('app').style.display = 'block';
+          boot();
+        }, 250);
+      } else {
+        input.classList.add('error');
+        setTimeout(() => { input.classList.remove('error'); input.value = ''; input.focus(); }, 400);
+      }
+    }
+  });
+}
+
+/* ---------- Boot ---------- */
+async function boot() {
+  await loadConfig();
+  await loadSnapshots();
+  bindUI();
+  render();
+}
+
+async function loadConfig() {
+  try {
+    const r = await fetch('./config/comp_set.json');
+    CONFIG = await r.json();
+  } catch (e) {
+    console.error('Failed to load config', e);
+    CONFIG = { hotels: [], scan: {} };
+  }
+}
+
+async function loadSnapshots() {
+  let repoSnapshots = [];
+  try {
+    const r = await fetch('./data/prices.json');
+    const data = await r.json();
+    repoSnapshots = data.snapshots || [];
+  } catch (e) {
+    console.warn('No prices.json or invalid', e);
+  }
+  const local = JSON.parse(localStorage.getItem(LS_SNAPSHOTS_KEY) || '[]');
+  // dedupe by captured_at
+  const seen = new Set();
+  SNAPSHOTS = [...repoSnapshots, ...local]
+    .filter(s => { if (seen.has(s.captured_at)) return false; seen.add(s.captured_at); return true; })
+    .sort((a,b) => new Date(a.captured_at) - new Date(b.captured_at));
+}
+
+function saveLocalSnapshots() {
+  // only save snapshots NOT in repo (assume repo data has stable captured_at)
+  // simplest: save all, dedupe on load
+  localStorage.setItem(LS_SNAPSHOTS_KEY, JSON.stringify(SNAPSHOTS));
+}
+
+/* ---------- UI bindings ---------- */
+function bindUI() {
+  document.getElementById('updateBtn').onclick = openModal;
+  document.getElementById('exportBtn').onclick = exportData;
+  document.getElementById('lockBtn').onclick = () => { sessionStorage.removeItem(LS_AUTH_KEY); location.reload(); };
+  document.getElementById('modalClose').onclick = closeModal;
+  document.getElementById('modalCancel').onclick = closeModal;
+  document.getElementById('modalSave').onclick = ingestSnapshot;
+  document.getElementById('modalBg').onclick = (e) => { if (e.target.id === 'modalBg') closeModal(); };
+}
+
+function openModal() {
+  document.getElementById('jsonInput').value = '';
+  document.getElementById('modalStatus').textContent = '';
+  document.getElementById('modalStatus').className = 'modal-status';
+  document.getElementById('modalBg').classList.add('open');
+  setTimeout(() => document.getElementById('jsonInput').focus(), 60);
+}
+function closeModal() { document.getElementById('modalBg').classList.remove('open'); }
+
+function setStatus(msg, kind='') {
+  const el = document.getElementById('modalStatus');
+  el.textContent = msg;
+  el.className = 'modal-status ' + kind;
+}
+
+function ingestSnapshot() {
+  const txt = document.getElementById('jsonInput').value.trim();
+  if (!txt) { setStatus('Paste JSON first.', 'err'); return; }
+  let parsed;
+  try { parsed = JSON.parse(txt); } catch { setStatus('Invalid JSON.', 'err'); return; }
+  if (!parsed.captured_at || !Array.isArray(parsed.rates)) { setStatus('Missing required fields: captured_at, rates[].', 'err'); return; }
+
+  // Validate hotel_ids exist in config
+  const validIds = new Set(CONFIG.hotels.map(h => h.id));
+  const unknown = parsed.rates.map(r => r.hotel_id).filter(id => !validIds.has(id));
+  if (unknown.length) { setStatus(`Unknown hotel_ids: ${[...new Set(unknown)].join(', ')}`, 'err'); return; }
+
+  // Dedupe
+  if (SNAPSHOTS.find(s => s.captured_at === parsed.captured_at)) {
+    setStatus('A snapshot with this captured_at already exists.', 'err'); return;
+  }
+
+  SNAPSHOTS.push(parsed);
+  SNAPSHOTS.sort((a,b) => new Date(a.captured_at) - new Date(b.captured_at));
+  saveLocalSnapshots();
+  setStatus(`Ingested. ${parsed.rates.length} rates added.`, 'ok');
+  setTimeout(() => { closeModal(); render(); }, 700);
+}
+
+function exportData() {
+  const payload = { version: 1, snapshots: SNAPSHOTS };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `prices_${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+
+/* ---------- Render ---------- */
+let CURRENT_FILTER = { stay: 'all', month: 'all' };
+let TREND_CHART = null;
+
+function render() {
+  const root = document.getElementById('content');
+
+  if (SNAPSHOTS.length === 0) {
+    root.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-mark">⌬</div>
+        <div class="empty-state-title">No snapshots yet</div>
+        <div class="empty-state-sub">Open Claude in Chrome, run the RateWolf workflow (see <code>instructions/claude-chrome-workflow.md</code>), then paste the JSON output here to populate the dashboard.</div>
+        <button class="btn btn-primary" onclick="document.getElementById('updateBtn').click()">+ Paste First Snapshot</button>
+      </div>`;
+    document.getElementById('lastUpdated').textContent = 'No data yet';
+    return;
+  }
+
+  const latest = SNAPSHOTS[SNAPSHOTS.length - 1];
+  document.getElementById('lastUpdated').textContent =
+    'Updated ' + new Date(latest.captured_at).toLocaleString('en-GB', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' });
+
+  const subjectId = CONFIG.hotels.find(h => h.is_subject)?.id || 'navis';
+  const kpis = computeKPIs(latest, subjectId);
+  const heatmap = renderHeatmap(latest, subjectId);
+  const anomalies = computeAnomalies(subjectId);
+
+  root.innerHTML = `
+    <!-- KPI strip -->
+    <div class="kpi-strip">
+      <div class="kpi">
+        <div class="kpi-label">vs. Market Median</div>
+        <div class="kpi-value ${kpis.vsMarket.cls}">${kpis.vsMarket.label}</div>
+        <div class="kpi-sub">All channels, latest snapshot</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Median Weekend Rate</div>
+        <div class="kpi-value">${kpis.weekendMedian == null ? '—' : '€' + kpis.weekendMedian}</div>
+        <div class="kpi-sub">Fri/Sat, next 4 weekends · market</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Median Midweek Rate</div>
+        <div class="kpi-value">${kpis.midweekMedian == null ? '—' : '€' + kpis.midweekMedian}</div>
+        <div class="kpi-sub">Sun–Thu lowest · market</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Sold Out Signals</div>
+        <div class="kpi-value">${kpis.soldOutCount}</div>
+        <div class="kpi-sub">Across all hotels & dates</div>
+      </div>
+    </div>
+
+    <!-- Heatmap section -->
+    <div class="section">
+      <div class="section-head">
+        <div>
+          <div class="section-eyebrow">Rate Matrix</div>
+          <div class="section-title">Pricing across the comp set</div>
+        </div>
+        <div class="filters">
+          <button class="chip ${CURRENT_FILTER.stay==='all'?'active':''}" data-stay="all">All</button>
+          <button class="chip ${CURRENT_FILTER.stay==='midweek'?'active':''}" data-stay="midweek">Midweek</button>
+          <button class="chip ${CURRENT_FILTER.stay==='weekend'?'active':''}" data-stay="weekend">Weekend</button>
+        </div>
+      </div>
+      <div class="heatmap-wrap">${heatmap}</div>
+    </div>
+
+    <!-- Trend section -->
+    <div class="section">
+      <div class="section-head">
+        <div>
+          <div class="section-eyebrow">Movement</div>
+          <div class="section-title">Navis vs. market median over time</div>
+        </div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-canvas-wrap"><canvas id="trendChart"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Anomaly feed -->
+    <div class="section">
+      <div class="section-head">
+        <div>
+          <div class="section-eyebrow">Signals</div>
+          <div class="section-title">Notable moves since last snapshot</div>
+        </div>
+      </div>
+      ${anomalies.length === 0
+        ? `<div class="empty-state" style="padding:40px"><div class="empty-state-sub">Need at least two snapshots to compute deltas. Come back tomorrow after the next run.</div></div>`
+        : `<div class="feed">${anomalies.map(a => `
+            <div class="feed-item">
+              <div class="feed-tag ${a.kind}">${a.kind}</div>
+              <div class="feed-text">${a.text}</div>
+              <div class="feed-when">${a.when}</div>
+            </div>`).join('')}</div>`
+      }
+    </div>
+  `;
+
+  // bind filter chips
+  document.querySelectorAll('.chip[data-stay]').forEach(c => {
+    c.onclick = () => { CURRENT_FILTER.stay = c.dataset.stay; render(); };
+  });
+
+  drawTrend(subjectId);
+}
+
+/* ---------- KPIs ---------- */
+function computeKPIs(snapshot, subjectId) {
+  const filtered = snapshot.rates.filter(r => CURRENT_FILTER.stay === 'all' || r.stay_type === CURRENT_FILTER.stay);
+
+  const subject = filtered.filter(r => r.hotel_id === subjectId && r.rate_eur != null);
+  const competitors = filtered.filter(r => r.hotel_id !== subjectId && r.rate_eur != null);
+
+  const median = arr => {
+    const sorted = arr.slice().sort((a,b)=>a-b);
+    if (!sorted.length) return null;
+    const m = Math.floor(sorted.length/2);
+    return sorted.length % 2 ? sorted[m] : Math.round((sorted[m-1]+sorted[m])/2);
+  };
+
+  const subjectMedian = median(subject.map(r => r.rate_eur));
+  const competitorMedian = median(competitors.map(r => r.rate_eur));
+
+  let vsMarket = { label: '—', cls: '' };
+  if (subjectMedian != null && competitorMedian != null) {
+    const diff = subjectMedian - competitorMedian;
+    const pct = Math.round((diff / competitorMedian) * 100);
+    const sign = pct > 0 ? '+' : '';
+    vsMarket.label = `${sign}${pct}%`;
+    vsMarket.cls = pct > 5 ? 'negative' : (pct < -5 ? 'positive' : '');
+  }
+
+  const weekendMedian = median(snapshot.rates.filter(r => r.stay_type === 'weekend' && r.hotel_id !== subjectId && r.rate_eur != null).map(r => r.rate_eur));
+  const midweekMedian = median(snapshot.rates.filter(r => r.stay_type === 'midweek' && r.hotel_id !== subjectId && r.rate_eur != null).map(r => r.rate_eur));
+  const soldOutCount = snapshot.rates.filter(r => r.sold_out).length;
+
+  return { vsMarket, weekendMedian, midweekMedian, soldOutCount };
+}
+
+/* ---------- Heatmap ---------- */
+function renderHeatmap(snapshot, subjectId) {
+  const stayFilter = CURRENT_FILTER.stay;
+  const rates = snapshot.rates.filter(r => stayFilter === 'all' || r.stay_type === stayFilter);
+
+  const dates = [...new Set(rates.map(r => r.check_in))].sort();
+  if (dates.length === 0) return '<div style="padding:40px;text-align:center;color:var(--ink-mute)">No rates for this filter.</div>';
+
+  const hotels = CONFIG.hotels;
+  const subjectIdx = hotels.findIndex(h => h.id === subjectId);
+  // put subject first
+  const orderedHotels = [hotels[subjectIdx], ...hotels.filter((_,i) => i !== subjectIdx)].filter(Boolean);
+
+  // build subject rate index for delta computation
+  const subjectRates = {};
+  rates.filter(r => r.hotel_id === subjectId).forEach(r => { subjectRates[r.check_in] = r.rate_eur; });
+
+  let html = '<table class="heatmap"><thead><tr>';
+  html += '<th class="hotel-col">Hotel</th>';
+  dates.forEach(d => {
+    const dayName = new Date(d).toLocaleDateString('en-GB', { weekday: 'short' });
+    const isWeekend = ['Fri','Sat'].includes(dayName);
+    const dateStr = new Date(d).toLocaleDateString('en-GB', { day:'2-digit', month:'short' });
+    html += `<th class="${isWeekend ? 'weekend-col' : ''}"><div>${dayName}</div><div style="opacity:0.6;font-size:9px;margin-top:2px">${dateStr}</div></th>`;
+  });
+  html += '</tr></thead><tbody>';
+
+  orderedHotels.forEach(h => {
+    const isSubject = h.is_subject;
+    html += `<tr class="${isSubject ? 'subject-row' : ''}">`;
+    html += `<td class="hotel-cell ${isSubject ? 'subject' : ''}">${h.name}</td>`;
+    dates.forEach(d => {
+      const dayName = new Date(d).toLocaleDateString('en-GB', { weekday: 'short' });
+      const isWeekend = ['Fri','Sat'].includes(dayName);
+      const r = rates.find(rt => rt.hotel_id === h.id && rt.check_in === d);
+      let cellClass = isWeekend ? 'weekend-col' : '';
+      let content = '—';
+      if (!r) {
+        cellClass += ' empty';
+      } else if (r.sold_out) {
+        cellClass += ' sold-out';
+        content = 'sold';
+      } else if (r.rate_eur != null) {
+        content = '€' + r.rate_eur;
+        if (!isSubject && subjectRates[d] != null) {
+          const diff = r.rate_eur - subjectRates[d];
+          if (diff < 0) cellClass += ' delta-pos'; // competitor cheaper than us → we look expensive
+          else if (diff > 0) cellClass += ' delta-neg'; // competitor more expensive → we look cheap
+        }
+      }
+      html += `<td class="${cellClass}" title="${h.name} · ${d}${r?.room_type ? ' · '+r.room_type : ''}">${content}</td>`;
+    });
+    html += '</tr>';
+  });
+
+  html += '</tbody></table>';
+  return html;
+}
+
+/* ---------- Trend chart ---------- */
+function drawTrend(subjectId) {
+  const ctx = document.getElementById('trendChart');
+  if (!ctx) return;
+  if (TREND_CHART) TREND_CHART.destroy();
+
+  const labels = SNAPSHOTS.map(s => new Date(s.captured_at).toLocaleDateString('en-GB', { day:'2-digit', month:'short' }));
+
+  const median = arr => {
+    const s = arr.filter(x => x != null).slice().sort((a,b)=>a-b);
+    if (!s.length) return null;
+    const m = Math.floor(s.length/2);
+    return s.length % 2 ? s[m] : Math.round((s[m-1]+s[m])/2);
+  };
+
+  const stayFilter = CURRENT_FILTER.stay;
+  const filterFn = r => (stayFilter === 'all' || r.stay_type === stayFilter) && r.rate_eur != null;
+
+  const subjectSeries = SNAPSHOTS.map(s => median(s.rates.filter(r => r.hotel_id === subjectId).filter(filterFn).map(r => r.rate_eur)));
+  const compSeries = SNAPSHOTS.map(s => median(s.rates.filter(r => r.hotel_id !== subjectId).filter(filterFn).map(r => r.rate_eur)));
+
+  const fontFamily = "'Manrope', sans-serif";
+  const ink = getComputedStyle(document.documentElement).getPropertyValue('--ink-soft').trim();
+  const inkMute = getComputedStyle(document.documentElement).getPropertyValue('--ink-mute').trim();
+  const border = getComputedStyle(document.documentElement).getPropertyValue('--border').trim();
+  const gold = getComputedStyle(document.documentElement).getPropertyValue('--gold').trim();
+
+  TREND_CHART = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Hotel Navis (median)',
+          data: subjectSeries,
+          borderColor: gold,
+          backgroundColor: 'rgba(212, 168, 90, 0.1)',
+          borderWidth: 2.5,
+          tension: 0.3,
+          pointRadius: 4,
+          pointBackgroundColor: gold,
+          fill: true,
+        },
+        {
+          label: 'Market median',
+          data: compSeries,
+          borderColor: ink,
+          backgroundColor: 'transparent',
+          borderWidth: 1.5,
+          borderDash: [4, 4],
+          tension: 0.3,
+          pointRadius: 3,
+          pointBackgroundColor: ink,
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: ink, font: { family: fontFamily, size: 11 } } },
+        tooltip: { callbacks: { label: c => `${c.dataset.label}: €${c.parsed.y}` } }
+      },
+      scales: {
+        x: { ticks: { color: inkMute, font: { family: fontFamily, size: 10 } }, grid: { color: border } },
+        y: { ticks: { color: inkMute, font: { family: 'JetBrains Mono', size: 10 }, callback: v => '€'+v }, grid: { color: border } }
+      }
+    }
+  });
+}
+
+/* ---------- Anomalies ---------- */
+function computeAnomalies(subjectId) {
+  if (SNAPSHOTS.length < 2) return [];
+  const latest = SNAPSHOTS[SNAPSHOTS.length - 1];
+  const prev = SNAPSHOTS[SNAPSHOTS.length - 2];
+
+  const dropThreshold = (CONFIG.alerts?.competitor_drop_threshold_pct ?? 10) / 100;
+  const surgeThreshold = (CONFIG.alerts?.we_overpriced_threshold_pct ?? 8) / 100;
+
+  const out = [];
+  const hotelName = id => CONFIG.hotels.find(h => h.id === id)?.name || id;
+  const fmtDate = d => new Date(d).toLocaleDateString('en-GB', { weekday:'short', day:'2-digit', month:'short' });
+
+  latest.rates.forEach(r => {
+    const prevRate = prev.rates.find(p => p.hotel_id === r.hotel_id && p.check_in === r.check_in && p.stay_type === r.stay_type);
+    if (!prevRate) return;
+
+    // Sold out new
+    if (r.sold_out && !prevRate.sold_out) {
+      out.push({ kind:'soldout', text:`<strong>${hotelName(r.hotel_id)}</strong> went sold out for ${fmtDate(r.check_in)}.`, when: fmtDate(r.check_in) });
+      return;
+    }
+    if (r.rate_eur == null || prevRate.rate_eur == null) return;
+    const pct = (r.rate_eur - prevRate.rate_eur) / prevRate.rate_eur;
+
+    if (r.hotel_id === subjectId) {
+      // Subject moved — informational
+      if (Math.abs(pct) > 0.05) {
+        const dir = pct > 0 ? 'raised' : 'cut';
+        out.push({ kind:'alert', text:`<strong>Navis</strong> ${dir} the rate for ${fmtDate(r.check_in)} by ${Math.abs(Math.round(pct*100))}% (€${prevRate.rate_eur} → €${r.rate_eur}).`, when: fmtDate(r.check_in) });
+      }
+    } else {
+      if (pct <= -dropThreshold) {
+        out.push({ kind:'drop', text:`<strong>${hotelName(r.hotel_id)}</strong> dropped ${Math.abs(Math.round(pct*100))}% for ${fmtDate(r.check_in)} (€${prevRate.rate_eur} → €${r.rate_eur}).`, when: fmtDate(r.check_in) });
+      } else if (pct >= surgeThreshold) {
+        out.push({ kind:'surge', text:`<strong>${hotelName(r.hotel_id)}</strong> raised ${Math.round(pct*100)}% for ${fmtDate(r.check_in)} (€${prevRate.rate_eur} → €${r.rate_eur}).`, when: fmtDate(r.check_in) });
+      }
+    }
+  });
+
+  // Subject vs market today
+  const subjectLatest = latest.rates.filter(r => r.hotel_id === subjectId && r.rate_eur != null);
+  subjectLatest.forEach(r => {
+    const sameDate = latest.rates.filter(x => x.check_in === r.check_in && x.hotel_id !== subjectId && x.rate_eur != null);
+    if (sameDate.length < 3) return;
+    const compMedian = sameDate.map(x=>x.rate_eur).sort((a,b)=>a-b)[Math.floor(sameDate.length/2)];
+    const diffPct = (r.rate_eur - compMedian) / compMedian;
+    if (diffPct > surgeThreshold) {
+      out.push({ kind:'surge', text:`<strong>Navis</strong> sits <strong>${Math.round(diffPct*100)}%</strong> above market median for ${fmtDate(r.check_in)} (€${r.rate_eur} vs €${compMedian}).`, when: fmtDate(r.check_in) });
+    }
+  });
+
+  return out.slice(0, 12); // cap feed
+}
+
+/* ---------- Boot ---------- */
+initGate();
+</script>
+</body>
+</html>
