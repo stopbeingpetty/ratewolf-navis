@@ -44,11 +44,13 @@
     --brass-deep: #8C6E36;
     --brass-glow: rgba(212, 168, 90, 0.20);
 
-    /* Signals */
-    --positive:  #7AA66C;      /* verified, on track */
-    --positive-soft: rgba(122, 166, 108, 0.14);
-    --negative:  #C9544A;      /* suspect, overpriced */
-    --negative-soft: rgba(201, 84, 74, 0.14);
+    /* Signals — accessibility-tuned: teal-blue + red (not green + red) */
+    --positive:  #7DB5C8;      /* slate teal — competitor pricier than us */
+    --positive-soft: rgba(125, 181, 200, 0.14);
+    --positive-strong: #93C5D6;
+    --negative:  #D85F55;      /* warm red — competitor cheaper than us */
+    --negative-soft: rgba(216, 95, 85, 0.14);
+    --negative-strong: #E47369;
     --warn:      #D89A4A;
     --warn-soft: rgba(216, 154, 74, 0.12);
     --info:      #7896B2;
@@ -78,9 +80,9 @@
     min-height: 100vh;
 
     background-image:
-      radial-gradient(at 12% 0%, rgba(212, 168, 90, 0.045) 0%, transparent 38%),
-      radial-gradient(at 88% 92%, rgba(201, 84, 74, 0.035) 0%, transparent 45%),
-      url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.95 0 0 0 0 0.92 0 0 0 0 0.85 0 0 0 0.035 0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E");
+      radial-gradient(at 12% 0%, rgba(212, 168, 90, 0.030) 0%, transparent 38%),
+      radial-gradient(at 88% 92%, rgba(216, 95, 85, 0.022) 0%, transparent 45%),
+      url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.95 0 0 0 0 0.92 0 0 0 0 0.85 0 0 0 0.022 0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E");
     background-attachment: fixed;
   }
 
@@ -529,31 +531,60 @@
     background: rgba(212, 168, 90, 0.09);
   }
 
-  /* Rate cells */
+  /* Rate cells — THE numbers, made prominent */
   .heatmap tbody td {
-    padding: 12px 8px;
+    padding: 16px 10px;
     text-align: center;
     border-bottom: 1px solid var(--border);
     color: var(--ink-soft);
     white-space: nowrap;
     transition: background 0.12s;
-    min-width: 72px;
+    min-width: 84px;
     position: relative;
+    font-size: 14px;
+    font-weight: 500;
+    letter-spacing: -0.01em;
   }
   .heatmap tbody td.weekend-col { background: var(--bg-grain); }
-  .heatmap tbody td.delta-pos { color: var(--positive); font-weight: 500; }
-  .heatmap tbody td.delta-neg { color: var(--negative); font-weight: 500; }
+
+  /* Delta cells — competitor vs subject, with arrow + color */
+  .heatmap tbody td.delta-pos {
+    color: var(--positive);
+    font-weight: 600;
+  }
+  .heatmap tbody td.delta-neg {
+    color: var(--negative);
+    font-weight: 600;
+  }
+  .heatmap tbody td .arrow {
+    display: inline-block;
+    font-size: 10px;
+    margin-right: 3px;
+    opacity: 0.85;
+    vertical-align: 1px;
+    font-weight: 700;
+  }
+
   .heatmap tbody td.sold-out {
     color: var(--ink-faint);
     font-style: italic;
-    font-size: 10px;
+    font-size: 11px;
+    font-weight: 400;
   }
   .heatmap tbody td.empty {
     color: var(--ink-ghost);
+    font-size: 13px;
   }
   .heatmap tbody td:not(.hotel-cell):hover {
     background: var(--surface-3);
     cursor: default;
+  }
+
+  /* Subject row prices in brass — Navis always glows */
+  .heatmap tbody tr.subject-row td:not(.hotel-cell):not(.sold-out):not(.empty) {
+    color: var(--brass);
+    font-weight: 600;
+    font-size: 14.5px;
   }
 
   /* ===== TREND CHART ===== */
@@ -1346,12 +1377,20 @@ function renderHeatmap(snapshot, subjectId) {
         content = 'sold';
         tooltip = `${h.name} · ${d} · sold out`;
       } else if (r.rate_eur != null) {
-        content = '€' + r.rate_eur;
+        let arrow = '';
         tooltip = `${h.name} · ${d}${r.room_type ? ' · '+r.room_type : ''}`;
         if (!isSubject && subjectRates[d] != null) {
-          if (r.rate_eur < subjectRates[d]) cls += ' delta-pos';
-          else if (r.rate_eur > subjectRates[d]) cls += ' delta-neg';
+          if (r.rate_eur < subjectRates[d]) {
+            cls += ' delta-pos';
+            arrow = '<span class="arrow">↓</span>';
+            tooltip += ` · €${subjectRates[d] - r.rate_eur} below Navis`;
+          } else if (r.rate_eur > subjectRates[d]) {
+            cls += ' delta-neg';
+            arrow = '<span class="arrow">↑</span>';
+            tooltip += ` · €${r.rate_eur - subjectRates[d]} above Navis`;
+          }
         }
+        content = arrow + '€' + r.rate_eur;
       } else {
         cls += ' empty';
         tooltip = `${h.name} · ${d} · no data`;
