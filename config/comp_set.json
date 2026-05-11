@@ -1,10 +1,10 @@
 {
-  "version": 2,
+  "version": 3,
   "client": "Hotel Navis",
   "destination": "Opatija",
   "currency": "EUR",
-  "rate_policy": "bookable",
-  "rate_policy_note": "Capture the rate a non-logged-in guest sees when they search the hotel — including any publicly displayed promotion (Getaway Deal, Limited Time Offer, Mobile rate, Genius-style public discount). This is the rate that actually converts bookings, so it's our true competitive benchmark. Do NOT strip promotions to recover a 'rack rate' — we want what a guest pays, not what a hotel quotes internally.",
+  "rate_policy": "genius-2-3",
+  "rate_policy_note": "Capture rates from a LOGGED-IN Booking.com session where David is signed in with his Genius 2-3 status. Hotels that participate in the Genius programme deliberately inflate logged-out/public rates so the Genius discount looks meaningful — comparing public rates would benchmark Navis against an artificially elevated baseline that doesn't reflect what guests actually pay. We want the rate a Genius member sees and clicks. Hotels not in the Genius programme will show the same rate as logged-out users; capture whatever's displayed. The only rates to ignore are mobile-only-app rates and corporate/private negotiated rates.",
   "hotels": [
     {
       "id": "navis",
